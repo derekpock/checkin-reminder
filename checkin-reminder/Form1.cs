@@ -23,8 +23,10 @@ namespace checkin_reminder
         CheckinState state;
         DateTime today;
         TimeSpan workedTime;
+        TimeSpan customTarget;
+        bool useCustomTarget;
         Dictionary<DayOfWeek, TimeSpan> schedule;
-        
+        Thread timeThread;
 
         delegate void SetTextCallback();
 
@@ -40,8 +42,18 @@ namespace checkin_reminder
             else
             {
                 labElapsed.Text = workedTime.ToString("h\\:mm\\:ss");
-                labRemain.Text = schedule[today.DayOfWeek].Subtract(workedTime).ToString("h\\:mm\\:ss");
-                labFinish.Text = today.Add(schedule[today.DayOfWeek].Subtract(workedTime)).ToShortTimeString();
+                TimeSpan currentSchedule;
+                if(useCustomTarget)
+                {
+                    currentSchedule = customTarget;
+                }
+                else
+                {
+                    currentSchedule = schedule[today.DayOfWeek];
+                }
+
+                labRemain.Text = currentSchedule.Subtract(workedTime).ToString("h\\:mm\\:ss");
+                labFinish.Text = today.Add(currentSchedule).ToShortTimeString();
             }
         }
 
@@ -60,9 +72,11 @@ namespace checkin_reminder
             state = CheckinState.CheckedOut;
             today = DateTime.Now;
             workedTime = TimeSpan.Zero;
+            customTarget = TimeSpan.Zero;
+            useCustomTarget = false;
             prepareState(state);
 
-            Thread timeThread = new Thread(new ThreadStart(this.TimeThread));
+            timeThread = new Thread(new ThreadStart(this.TimeThread));
             timeThread.IsBackground = true;
             timeThread.Start();
         }
@@ -74,6 +88,8 @@ namespace checkin_reminder
                 if (DateTime.Now.DayOfWeek != today.DayOfWeek)
                 {
                     workedTime = TimeSpan.Zero;
+                    customTarget = TimeSpan.Zero;
+                    useCustomTarget = false;
                 }
 
                 switch (state)
@@ -87,7 +103,13 @@ namespace checkin_reminder
                         break;
                 }
                 SetLabelsText();
-                Thread.Sleep(1000);
+                try
+                {
+                    Thread.Sleep(1000);
+                }
+                catch(ThreadInterruptedException ex)
+                {
+                }
             }
         }
 
@@ -125,6 +147,21 @@ namespace checkin_reminder
                     labStatus.Text = "Currently Checked Out";
                     this.TopMost = true;
                     break;
+            }
+        }
+
+        private void inputTarget_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                customTarget = TimeSpan.Parse(inputTarget.Text);
+                useCustomTarget = customTarget.TotalMilliseconds != 0;
+                timeThread.Interrupt();
+                inputTarget.ForeColor = SystemColors.WindowText;
+            }
+            catch (FormatException ex)
+            {
+                inputTarget.ForeColor = Color.Red;
             }
         }
     }
