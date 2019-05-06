@@ -89,6 +89,7 @@ namespace checkin_reminder
                 {
                     workedTime = TimeSpan.Zero;
                     customTarget = TimeSpan.Zero;
+                    inputTarget.Text = "";
                     useCustomTarget = false;
                 }
 
